@@ -10,4 +10,5 @@ import (
 	_ "github.com/google/go-jsonnet/cmd/jsonnet"
 	_ "github.com/google/go-jsonnet/cmd/jsonnetfmt"
 	_ "github.com/jsonnet-bundler/jsonnet-bundler/cmd/jb"
+	_ "github.com/yannh/kubeconform/cmd/kubeconform"
 )

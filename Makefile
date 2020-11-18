@@ -1,13 +1,15 @@
 SHELL=/bin/bash -o pipefail
 
 BIN_DIR?=$(shell pwd)/tmp/bin
+TEST_DIR?=$(shell pwd)/tmp/manifests
 
 EMBEDMD_BIN=$(BIN_DIR)/embedmd
 JB_BIN=$(BIN_DIR)/jb
 GOJSONTOYAML_BIN=$(BIN_DIR)/gojsontoyaml
 JSONNET_BIN=$(BIN_DIR)/jsonnet
 JSONNETFMT_BIN=$(BIN_DIR)/jsonnetfmt
-TOOLING=$(EMBEDMD_BIN) $(JB_BIN) $(GOJSONTOYAML_BIN) $(JSONNET_BIN) $(JSONNETFMT_BIN)
+KUBECONFORM_BIN=$(BIN_DIR)/kubeconform
+TOOLING=$(EMBEDMD_BIN) $(JB_BIN) $(GOJSONTOYAML_BIN) $(JSONNET_BIN) $(JSONNETFMT_BIN) $(KUBECONFORM_BIN)
 
 JSONNETFMT_ARGS=-n 2 --max-blank-lines 2 --string-style s --comment-style s
 
@@ -27,6 +29,10 @@ generate: manifests **.md
 manifests: examples/kustomize.jsonnet $(GOJSONTOYAML_BIN) vendor build.sh
 	./build.sh $<
 
+.PHONY: validate
+validate: manifests $(KUBECONFORM_BIN)
+	$(KUBECONFORM_BIN) -schema-location 'https://kubernetesjsonschema.dev' -schema-location 'jsonschemas/{{ .ResourceKind }}_{{ .ResourceAPIVersion }}.json' examples/example-app/*.yaml
+
 vendor: $(JB_BIN) jsonnetfile.json jsonnetfile.lock.json
 	rm -rf vendor
 	$(JB_BIN) install
@@ -37,7 +43,7 @@ fmt: $(JSONNETFMT_BIN)
 		xargs -n 1 -- $(JSONNETFMT_BIN) $(JSONNETFMT_ARGS) -i
 
 .PHONY: test
-test: $(JB_BIN)
+test: $(JB_BIN) $(KUBECONFORM_BIN) $(TEST_DIR)
 	$(JB_BIN) install
 	./test.sh
 
@@ -47,6 +53,9 @@ test-e2e:
 
 $(BIN_DIR):
 	mkdir -p $(BIN_DIR)
+
+$(TEST_DIR):
+	mkdir -p $(TEST_DIR)
 
 $(TOOLING): $(BIN_DIR)
 	@echo Installing tools from scripts/tools.go
